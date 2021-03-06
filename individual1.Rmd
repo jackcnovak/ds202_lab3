@@ -1,0 +1,128 @@
+---
+title: "Lab 4"
+author: "Jack Novak"
+date: "3/3/2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Use ggplot2 to create the plots, and dplyr to manipulate the data frame as much as possible. You may want to rename the columns of the data frame for your convenience using rename in dplyr.
+
+Find the average years of education for the respondents with each marital status. Arrange your output in a meaningful order and print. Describe any patterns you find.
+
+```{r}
+library(dplyr)
+dat <- readxl::read_xls('/Users/jacknovak/Downloads/GSS.xls')
+dat <- rename(dat, c("Year"="Gss year for this respondent", "Education"="Highest year of school completed", "Married"="Marital status","Sex"="Respondents sex","Party"="Political party affiliation", "Happiness"="General happiness", "Employment"="Labor force status"))
+
+dat %>%
+  mutate(Education=as.numeric(Education)) %>%
+  na.omit() %>%
+  select(Married, Education) %>%
+  group_by(Married)%>%
+  summarize(mean(Education))
+
+```
+
+The marital status associated with the fewest average years of education is widowed. The best educated group was the 'No answer' group, followed by the divorced group.
+
+
+Create a single data frame containing records for the better educated respondents with each marital status. A “better educated” respondent is someone who has strictly more years of education than the average among those with the same marital status. Print the structure of the data frame.
+
+```{r}
+dat2 <- dat %>%
+  mutate(Education2 = as.numeric(Education)) %>%
+    na.omit %>% 
+  filter(Education2>=mean(Education2, rm.na=TRUE)) %>%
+  group_by(Married)
+
+str(dat2)
+```
+
+For each of the investigation below, create at least one numerical summary and one appropriate visualization. Write a paragraph to describe your findings and the variables you used.
+
+How is the happiness of a respondent related to his/her marriage status? Define that a person is happy if the response to question is “Very happy” or “Pretty happy”.
+
+```{r}
+
+dat3 <- dat %>%
+  select(Married, Happiness) %>%
+  group_by(Married)%>%
+  mutate(Happiness = ifelse(Happiness%in%c("Pretty happy","Very happy"),'Happy','Not Happy'))
+
+table(dat3)
+
+```
+
+A majority of respondents in every marital status group was happy. The happies group is married, with nearly 86 percent of respondents identifying as 'Pretty happy' or 'Very Happy'. The least happy groups by the same metric were 'No answer' and 'Separated', with only 59 and 66 percent of those respondents happy.
+
+```{r}
+library(ggplot2)
+
+ggplot(dat3, aes(x = Married, fill=Happiness)) + geom_bar() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + labs(x = "\n Marriage Status", y = "Frequency\n", title = "\n Happiness by Marriage Status \n")
+
+```
+
+
+Does party affiliation affect the relationship you found in the last question?
+
+```{r}
+dat4 <- dat %>%
+  select(Married, Happiness, Party) %>%
+  mutate(Happiness = ifelse(Happiness%in%c("Pretty happy","Very happy"),"Happy","Not Happy"))
+```
+
+```{r}
+dat4<-na.omit(dat4)
+ggplot(dat4, aes(x=Married, fill=Happiness)) +geom_bar() +theme(axis.text.x = element_text(angle = 45, hjust = 1)) +facet_wrap(~Party)
+
+```
+I definitely struggled on this one so the graph isn't **too** informative but it's apparent that the mode respondent in the subset is a married, not-strong democrat. The proportions of each marital status appears similar across party affiliations.
+
+
+How is marital status related to the education of a respondent? What are possible reasons accounting for the patterns you see?
+
+```{r}
+dat5 <- dat %>%
+  mutate(Education=as.numeric(Education)) %>%
+  na.omit() %>%
+  select('Married', 'Education', 'Year', 'Sex', 'Employment') %>%
+  group_by(Married)
+```
+
+The least educated groups are 'Widowed' and 'Separated.' Among other factors, these individuals are likely to be older. Historically, the labor market exacted fewer years of educations, so age may be correlated with certain marital statuses as well as education.
+
+```{r}
+ggplot(dat5, aes(x=Year, y=Education, color=Sex))+geom_point(position=position_jitter(h=0.1, w=0.1),
+             alpha = 0.5, size = 1)+theme(axis.text.x = element_text(angle = 90, hjust = 1))+facet_wrap(~Married)
+```
+The widow category is primarily female and there appears to be a slight upward trend, suggesting widows in 2020 may be better educated on average than widows in 1970.
+
+Explore two more interesting questions, and answer those questions using the GSS data.
+
+```{r}
+dat6 <- dat %>%
+    mutate(Employment = ifelse(Employment%in%c("Working fulltime", "School","Keeping house", "Retired","Working parttime"),1,0)) %>%
+  select(Employment, Education, Happiness,Year) %>%
+   mutate(Happiness = ifelse(Happiness%in%c("Pretty happy","Very happy"),'Happy','Not Happy')) %>%
+  group_by(Year) %>%
+  mutate(employment_rate = mean(Employment))
+
+summarize(dat6, 1-mean(Employment))
+```
+The above table describes the unemployment rate implied by the survey for each year.
+
+```{r}
+ggplot(dat6, aes(x=Year, y=employment_rate)) +geom_line()+ylim(.8,1)
+```
+
+```{r}
+ggplot(dat2, aes(x=Education2, y=))+geom_boxplot()+facet_grid(~Happiness)
+```
+For most groups, the IQR ranges between 14 and 16. The median Education of someone who is 'very happy' is higher than the median education of people who are "pretty happy" or "not too happy".
